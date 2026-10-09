@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#05070f" />
+  <title>Snake.io — Zonas y Evolución</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ======================= LIENZO DEL JUEGO ======================= -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- ============================= HUD ============================= -->
+  <div class="hud" id="hud">
+    <div class="hud__row">
+      <section class="panel stats">
+        <div class="stat">
+          <span class="stat__label">Puntos</span>
+          <span class="stat__value" id="score">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat__label">Monedas</span>
+          <span class="stat__value stat__value--coin" id="runCoins">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat__label">Récord</span>
+          <span class="stat__value" id="best">0</span>
+        </div>
+        <div class="stat" id="livesStat" hidden>
+          <span class="stat__label">Vidas</span>
+          <span class="stat__value stat__value--life" id="lives">0</span>
+        </div>
+      </section>
+
+      <section class="panel rank">
+        <h2 class="panel__title">Ranking <span id="rankCount">10</span></h2>
+        <ol class="rank__list" id="rankList"></ol>
+      </section>
+    </div>
+
+    <!-- Chips de zona, evolución y evento -->
+    <div class="chips">
+      <span class="chip" id="zoneChip"><i></i><span>Bosque</span></span>
+      <span class="chip chip--evo" id="evoChip" hidden><i></i><span></span></span>
+      <span class="chip chip--event" id="eventChip" hidden></span>
+      <button class="chip chip--pause" id="pauseBtn" type="button" title="Pausar (Esc)">II</button>
+    </div>
+
+    <!-- Avisos de eliminaciones -->
+    <div class="killfeed" id="killFeed"></div>
+
+    <!-- Temporizadores de poderes activos -->
+    <div class="timers" id="timers"></div>
+
+    <!-- Barra de poderes (clic o teclas 1-5) -->
+    <div class="powers" id="powers">
+      <button class="power" type="button" data-power="velocidad">
+        <span class="power__fill"></span>
+        <span class="power__key">1</span>
+        <span class="power__name">Vel</span>
+        <span class="power__count" data-count="velocidad">0</span>
+      </button>
+      <button class="power" type="button" data-power="iman">
+        <span class="power__fill"></span>
+        <span class="power__key">2</span>
+        <span class="power__name">Imán</span>
+        <span class="power__count" data-count="iman">0</span>
+      </button>
+      <button class="power" type="button" data-power="escudo">
+        <span class="power__fill"></span>
+        <span class="power__key">3</span>
+        <span class="power__name">Esc</span>
+        <span class="power__count" data-count="escudo">0</span>
+      </button>
+      <button class="power" type="button" data-power="congelar">
+        <span class="power__fill"></span>
+        <span class="power__key">4</span>
+        <span class="power__name">Gel</span>
+        <span class="power__count" data-count="congelar">0</span>
+      </button>
+      <button class="power" type="button" data-power="teletransporte">
+        <span class="power__fill"></span>
+        <span class="power__key">5</span>
+        <span class="power__name">TP</span>
+        <span class="power__count" data-count="teletransporte">0</span>
+      </button>
+      <button class="power" type="button" data-power="fantasma">
+        <span class="power__fill"></span>
+        <span class="power__key">6</span>
+        <span class="power__name">Fan</span>
+        <span class="power__count" data-count="fantasma">0</span>
+      </button>
+    </div>
+
+    <canvas id="minimap" width="240" height="240" aria-label="Minimapa"></canvas>
+
+    <!-- Joystick virtual (celular) -->
+    <div class="joystick" id="joystick" aria-hidden="true">
+      <div class="joystick__knob" id="joystickKnob"></div>
+    </div>
+
+    <!-- Mensajes flotantes -->
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <!-- ========================= MENÚ PRINCIPAL ======================== -->
+  <div class="overlay is-visible" id="menuScreen">
+    <div class="card">
+      <h1 class="logo">Snake<span>.io</span></h1>
+      <p class="tagline">Zonas, poderes y evolución</p>
+
+      <div class="wallet">
+        <span class="wallet__item">Récord <b id="menuBest">0</b></span>
+        <span class="wallet__item wallet__item--coin">Monedas <b id="menuWallet">0</b></span>
+      </div>
+
+      <div class="menu__actions">
+        <button class="btn btn--primary" id="playBtn" type="button">Jugar</button>
+        <div class="menu__row">
+          <button class="btn btn--ghost" id="shopBtn" type="button">Tienda</button>
+          <button class="btn btn--ghost" id="missionsBtn" type="button">Misiones</button>
+        </div>
+        <div class="menu__row">
+          <button class="btn btn--ghost" id="configBtn" type="button">Configuración</button>
+        </div>
+      </div>
+
+      <div class="skins">
+        <p class="skins__label">Skin equipada: <b id="menuSkinName">Neón</b></p>
+        <div class="skins__strip" id="skinStrip"></div>
+      </div>
+
+      <p class="hint">Mouse o dedo para moverte · Teclas 1-5 para poderes</p>
+    </div>
+  </div>
+
+  <!-- ============================= TIENDA ============================ -->
+  <div class="overlay" id="shopScreen">
+    <div class="card card--wide">
+      <header class="card__head">
+        <h2 class="card__title">Tienda</h2>
+        <span class="chip chip--coin" id="shopWallet">0</span>
+      </header>
+
+      <div class="shop__scroll">
+        <h3 class="shop__section">Skins</h3>
+        <div class="shop__grid" id="skinShop"></div>
+
+        <h3 class="shop__section">Poderes</h3>
+        <div class="shop__grid" id="powerShop"></div>
+      </div>
+
+      <button class="btn btn--ghost" id="shopBack" type="button">Volver</button>
+    </div>
+  </div>
+
+  <!-- ============================ MISIONES =========================== -->
+  <div class="overlay" id="missionsScreen">
+    <div class="card card--wide">
+      <header class="card__head">
+        <h2 class="card__title">Misiones</h2>
+        <span class="chip chip--coin" id="missionsWallet">0</span>
+      </header>
+
+      <div class="shop__scroll">
+        <h3 class="shop__section">Misiones</h3>
+        <div class="missions" id="missionList"></div>
+
+        <h3 class="shop__section">Desafíos diarios <span id="dailyDate"></span></h3>
+        <div class="missions" id="dailyList"></div>
+
+        <h3 class="shop__section">Medallas</h3>
+        <div class="missions" id="medalList"></div>
+      </div>
+
+      <button class="btn btn--ghost" id="missionsBack" type="button">Volver</button>
+    </div>
+  </div>
+
+  <!-- ====================== NOMBRE Y APARIENCIA ====================== -->
+  <div class="overlay" id="setupScreen">
+    <div class="card card--wide">
+      <header class="card__head">
+        <h2 class="card__title">Tu serpiente</h2>
+      </header>
+
+      <div class="setup">
+        <label class="field" for="nameInput">
+          <span class="field__label">Nombre (máx. 16)</span>
+          <input class="field__input" id="nameInput" type="text" maxlength="16"
+                 placeholder="Escribí tu nombre" autocomplete="off" spellcheck="false" />
+          <span class="field__error" id="nameError" hidden>Escribí un nombre válido</span>
+        </label>
+
+        <div class="field">
+          <span class="field__label">Color</span>
+          <div class="swatches" id="colorStrip"></div>
+        </div>
+
+        <div class="field">
+          <span class="field__label">Ojos</span>
+          <div class="pills" id="eyeStrip"></div>
+        </div>
+
+        <div class="field">
+          <span class="field__label">Patrón</span>
+          <div class="pills" id="patternStrip"></div>
+        </div>
+
+        <canvas class="setup__preview" id="previewCanvas" width="360" height="120"></canvas>
+      </div>
+
+      <div class="menu__row">
+        <button class="btn btn--primary" id="setupPlay" type="button">Jugar</button>
+        <button class="btn btn--ghost" id="setupBack" type="button">Volver</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================== CONFIGURACIÓN ======================== -->
+  <div class="overlay" id="settingsScreen">
+    <div class="card">
+      <h2 class="card__title">Configuración</h2>
+
+      <div class="settings">
+        <label class="setting"><span>Mostrar nombres</span>
+          <input type="checkbox" id="setName" checked /><i></i></label>
+        <label class="setting"><span>Minimapa</span>
+          <input type="checkbox" id="setMinimap" checked /><i></i></label>
+        <label class="setting"><span>Partículas</span>
+          <input type="checkbox" id="setParticles" checked /><i></i></label>
+        <label class="setting"><span>Vibración de pantalla</span>
+          <input type="checkbox" id="setShake" checked /><i></i></label>
+        <label class="setting"><span>Estelas de la cola</span>
+          <input type="checkbox" id="setTrails" checked /><i></i></label>
+      </div>
+
+      <button class="btn btn--danger" id="resetSaveBtn" type="button">Borrar progreso</button>
+
+      <div class="menu__row">
+        <button class="btn btn--ghost" id="settingsBack" type="button">Volver</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================== PAUSA ============================= -->
+  <div class="overlay" id="pauseScreen">
+    <div class="card">
+      <h2 class="card__title">Pausa</h2>
+      <p class="card__reason">La partida está detenida.</p>
+
+      <div class="results">
+        <div class="results__item"><span>Puntos</span><b id="paScore">0</b></div>
+        <div class="results__item"><span>Tiempo</span><b id="paTime">0s</b></div>
+        <div class="results__item"><span>Bajas</span><b id="paKills">0</b></div>
+      </div>
+
+      <div class="menu__row">
+        <button class="btn btn--primary" id="resumeBtn" type="button">Reanudar</button>
+        <button class="btn btn--ghost" id="pauseMenuBtn" type="button">Menú</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================ GAME OVER ========================== -->
+  <div class="overlay" id="gameOverScreen">
+    <div class="card">
+      <h2 class="card__title card__title--danger">Game Over</h2>
+      <p class="card__reason" id="goReason">Chocaste.</p>
+
+      <div class="results">
+        <div class="results__item"><span>Puntos</span><b id="goScore">0</b></div>
+        <div class="results__item"><span>Monedas</span><b id="goCoins">0</b></div>
+        <div class="results__item"><span>Tiempo</span><b id="goTime">0s</b></div>
+        <div class="results__item"><span>Bajas</span><b id="goKills">0</b></div>
+        <div class="results__item"><span>Récord</span><b id="goBest">0</b></div>
+        <div class="results__item"><span>Posición</span><b id="goRank">#1</b></div>
+      </div>
+
+      <div class="menu__row">
+        <button class="btn btn--primary" id="goAgain" type="button">Jugar de nuevo</button>
+        <button class="btn btn--ghost" id="goMenu" type="button">Menú</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================= VICTORIA ========================== -->
+  <div class="overlay" id="victoryScreen">
+    <div class="card">
+      <h2 class="card__title card__title--gold">¡Victoria!</h2>
+      <p class="card__reason">Derrotaste a la Serpiente Gigante.</p>
+
+      <div class="results">
+        <div class="results__item"><span>Puntos</span><b id="vScore">0</b></div>
+        <div class="results__item"><span>Monedas</span><b id="vCoins">0</b></div>
+        <div class="results__item"><span>Bonus</span><b id="vBonus">+0</b></div>
+        <div class="results__item"><span>Tiempo</span><b id="vTime">0s</b></div>
+        <div class="results__item"><span>Bajas</span><b id="vKills">0</b></div>
+        <div class="results__item"><span>Billetera</span><b id="vWallet">0</b></div>
+      </div>
+
+      <div class="menu__row">
+        <button class="btn btn--primary" id="vAgain" type="button">Jugar de nuevo</button>
+        <button class="btn btn--ghost" id="vMenu" type="button">Menú</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
